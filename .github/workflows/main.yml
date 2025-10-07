@@ -16,7 +16,7 @@ jobs:
 
       - name: Run TestRigor tests
         env:
-          TESTRIGOR_AUTH_TOKEN: ${{ secrets.TESTRIGOR_AUTH_TOKEN }}
+          TESTRIGOR_AUTH_TOKEN: ${{ secrets.testRigorAuth }}
         run: |
           # Trigger TestRigor test run
           curl -X POST \
