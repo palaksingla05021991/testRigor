@@ -1,0 +1,74 @@
+name: TestRigor CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  run-testrigor-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Run TestRigor tests
+        env:
+          TESTRIGOR_AUTH_TOKEN: ${{ secrets.TESTRIGOR_AUTH_TOKEN }}
+        run: |
+          # Trigger TestRigor test run
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -H "auth-token: a68dcd84-bd5d-435d-ad27-a36d95e108be" \
+            --data '{"forceCancelPreviousTesting":true,"storedValues":{"storedValueName1":"Value"}}' \
+            https://api.testrigor.com/api/v1/apps/uZhYc9vCNdM3HGqTA/retest
+
+          echo "Waiting for TestRigor test to complete..."
+          sleep 10
+
+          # Polling loop to check status
+          while true; do
+            echo "==================================="
+            echo " Checking TestRigor run status"
+            echo "==================================="
+
+            response=$(curl -s -i -X GET "https://api.testrigor.com/api/v1/apps/uZhYc9vCNdM3HGqTA/status" \
+                        -H "auth-token: a68dcd84-bd5d-435d-ad27-a36d95e108be" \
+                        -H "Accept: application/json")
+            
+            code=$(echo "$response" | grep HTTP | awk '{print $2}')
+            body=$(echo "$response" | sed -n '/{/,/}/p')
+
+            echo "Status code: $code"
+            echo "Response: $body"
+
+            case $code in
+              4*|5*)
+                echo "Error calling API"
+                exit 1
+                ;;
+              200)
+                echo "Test finished successfully"
+                exit 0
+                ;;
+              227|228)
+                echo "Test is not finished yet"
+                ;;
+              229)
+                echo "Test canceled"
+                exit 1
+                ;;
+              230)
+                echo "Test finished but failed"
+                exit 1
+                ;;
+              *)
+                echo "Unknown status"
+                exit 1
+                ;;
+            esac
+
+            sleep 10
+          done
